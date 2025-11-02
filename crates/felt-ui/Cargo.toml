@@ -1,6 +1,6 @@
 [package]
 name = "felt-ui"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 description = "A cross-platform GPU-accelerated UI framework for 2D and 3D"
 license = "MIT OR Apache-2.0"
