@@ -1,0 +1,8 @@
+[package]
+name = "felt-ui"
+version = "0.1.0"
+edition = "2024"
+description = "a cross platform hybrid 2d/3d ui framework"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
