@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "felt-platform"
+version = "0.1.0"
+
+[[package]]
 name = "felt-ui"
-version = "0.1.1"
+version = "0.1.0"
+dependencies = [
+ "felt-platform",
+]

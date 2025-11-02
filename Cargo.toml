@@ -1,8 +1,11 @@
-[package]
-name = "felt-ui"
-version = "0.1.1"
-edition = "2024"
-description = "A cross-platform GPU-accelerated UI framework for 2D and 3D"
-license = "MIT OR Apache-2.0"
+[workspace]
+members = [
+    "crates/felt-ui",
+    "crates/felt-platform",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"

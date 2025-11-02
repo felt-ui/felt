@@ -1,0 +1,8 @@
+[package]
+name = "felt-platform"
+version = "0.1.0"
+edition = "2024"
+description = "Platform abstraction for Felt UI (winit glue, IME, clipboard, dialogs)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
