@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::window::Window;
 
 #[allow(dead_code)]
@@ -9,6 +10,7 @@ pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    scale_factor: f64,
 }
 
 impl Renderer {
@@ -19,6 +21,7 @@ impl Renderer {
         });
 
         let size = window.inner_size();
+        let scale_factor = window.scale_factor();
 
         let surface = instance.create_surface(Arc::clone(&window))?;
 
@@ -49,13 +52,27 @@ impl Renderer {
             .copied()
             .unwrap_or(surface_caps.formats[0]);
 
+        // Prefer PreMultiplied alpha for transparency support
+        let alpha_mode = surface_caps
+            .alpha_modes
+            .iter()
+            .find(|&&mode| mode == wgpu::CompositeAlphaMode::PreMultiplied)
+            .or_else(|| {
+                surface_caps
+                    .alpha_modes
+                    .iter()
+                    .find(|&&mode| mode == wgpu::CompositeAlphaMode::PostMultiplied)
+            })
+            .copied()
+            .unwrap_or(surface_caps.alpha_modes[0]);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo, // Vsync
-            alpha_mode: surface_caps.alpha_modes[0],
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -69,6 +86,7 @@ impl Renderer {
             device,
             queue,
             config,
+            scale_factor,
         })
     }
 
@@ -78,6 +96,10 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
         }
+    }
+
+    pub fn set_scale_factor(&mut self, scale_factor: f64) {
+        self.scale_factor = scale_factor;
     }
 
     pub fn render(&self) -> Result<(), RendererError> {
@@ -100,10 +122,10 @@ impl Renderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -131,6 +153,18 @@ impl Renderer {
 
     pub fn config(&self) -> &wgpu::SurfaceConfiguration {
         &self.config
+    }
+
+    pub fn scale_factor(&self) -> f64 {
+        self.scale_factor
+    }
+
+    pub fn physical_size(&self) -> PhysicalSize<u32> {
+        PhysicalSize::new(self.config.width, self.config.height)
+    }
+
+    pub fn logical_size(&self) -> LogicalSize<f64> {
+        self.physical_size().to_logical(self.scale_factor)
     }
 }
 

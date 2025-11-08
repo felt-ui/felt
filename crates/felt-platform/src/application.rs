@@ -87,6 +87,11 @@ impl ApplicationHandler for Application {
                     renderer.resize(new_size.width, new_size.height);
                 }
             }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(renderer) = &mut self.renderer {
+                    renderer.set_scale_factor(scale_factor);
+                }
+            }
             _ => {}
         }
     }
