@@ -1,4 +1,6 @@
+use crate::renderer::Renderer;
 use crate::size::Size;
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -8,7 +10,8 @@ type InitCallback = dyn for<'a> FnOnce(&mut AppContext<'a>);
 
 #[derive(Default)]
 pub struct Application {
-    window: Option<Window>,
+    window: Option<Arc<Window>>,
+    renderer: Option<Renderer>,
     init: Option<Box<InitCallback>>,
 }
 
@@ -16,6 +19,7 @@ impl Application {
     pub fn new() -> Self {
         Self {
             window: None,
+            renderer: None,
             init: None,
         }
     }
@@ -41,7 +45,23 @@ impl ApplicationHandler for Application {
                 init(&mut cx);
             }
 
-            self.window = cx.window;
+            if let Some(window) = cx.window {
+                let window = Arc::new(window);
+
+                // Initialize renderer with the window
+                match pollster::block_on(Renderer::new(Arc::clone(&window))) {
+                    Ok(renderer) => {
+                        self.renderer = Some(renderer);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to initialize renderer: {}", e);
+                        event_loop.exit();
+                        return;
+                    }
+                }
+
+                self.window = Some(window);
+            }
         }
     }
 
@@ -51,7 +71,21 @@ impl ApplicationHandler for Application {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                // Render frame here
+                if let Some(renderer) = &self.renderer
+                    && let Err(e) = renderer.render()
+                {
+                    eprintln!("Render error: {}", e);
+                }
+
+                // Request the next frame
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
+            }
+            WindowEvent::Resized(new_size) => {
+                if let Some(renderer) = &mut self.renderer {
+                    renderer.resize(new_size.width, new_size.height);
+                }
             }
             _ => {}
         }
@@ -123,6 +157,7 @@ mod test {
     fn creates_application_with_no_window() {
         let app = Application::new();
         assert!(app.window.is_none());
+        assert!(app.renderer.is_none());
         assert!(app.init.is_none());
     }
 }

@@ -6,4 +6,7 @@ description = "Platform abstraction for Felt UI (winit glue, IME, clipboard, dia
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-winit = "0.30"
+winit = "0.30.12"
+wgpu = "27.0.1"
+pollster = "0.4.0"
+thiserror = "2.0.17"
