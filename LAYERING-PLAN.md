@@ -18,12 +18,12 @@ Current Phase          Next Phase              Future Phase
 **Goal:** Get rectangles rendering with Vello
 
 **Tasks:**
-- [ ] Add vello dependency
-- [ ] Create vello::Renderer and integrate with wgpu
-- [ ] Build vello::Scene with rectangle primitives
-- [ ] Render scene to surface texture
-- [ ] Handle scene rebuilding on resize
-- [ ] Benchmark: 200k static rects at 60 Hz
+- [x] Add vello dependency
+- [x] Create vello::Renderer and integrate with wgpu
+- [x] Build vello::Scene with rectangle primitives
+- [x] Render scene to surface texture
+- [x] Handle scene rebuilding on resize
+- [x] Benchmark: 200k static rects at 60 Hz
 
 **Don't worry about layers yet.** Focus on understanding Vello's Scene API and getting the basic render loop working.
 
