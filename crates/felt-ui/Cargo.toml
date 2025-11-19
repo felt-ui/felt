@@ -7,3 +7,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 felt-platform = { version = "0.1.0", path = "../felt-platform" }
+taffy = "0.6"
+vello = "0.3.0"
+glam = "0.29"
+smallvec = "1.13"
+env_logger = "0.10"
+log = "0.4"
