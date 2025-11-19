@@ -1,9 +1,7 @@
 use felt_platform::App;
-use felt_ui::{canvas, div, scroll_view, AppExtension, IntoElement, PaintCtx, Widget};
+use felt_ui::{canvas, div, scroll_view, AppExtension};
+use felt_ui::{Brush, Circle, Color, FillRule, Point, Rect, Size, Vec2};
 use std::time::Instant;
-use vello::kurbo::{Affine, Point, Rect, Size, Vec2};
-use vello::peniko::{Brush, Color, Fill, Mix};
-use vello::Scene;
 
 fn main() {
     env_logger::init();
@@ -23,13 +21,13 @@ fn main() {
         // Rebuild the widget tree every frame (Declarative Style!)
         // Now the entire scene is described as a widget tree.
         div()
-            .bg(Color::rgb8(10, 10, 10)) // Window Background
+            .bg(Color::rgb(10, 10, 10)) // Window Background
             .child(
                 div() // Container
                     .offset(Vec2::new(100.0, 100.0))
                     .size(Size::new(600.0, 400.0))
-                    .bg(Color::rgb8(40, 40, 40)) // Container Background
-                    .border(Color::rgb8(150, 150, 150), 4.0) // Container Border
+                    .bg(Color::rgb(40, 40, 40)) // Container Background
+                    .border(Color::rgb(150, 150, 150), 4.0) // Container Border
                     .child(
                         scroll_view()
                             .size(Vec2::new(600.0, 400.0))
@@ -38,34 +36,34 @@ fn main() {
                                 div() // LAYER 2: SCROLL PANEL (The moving surface)
                                     .size(Size::new(500.0, 1200.0))
                                     .offset(Vec2::new(50.0, 0.0)) // Centered in 600px width
-                                    .bg(Color::rgb8(80, 80, 80)) // Medium Gray Panel
+                                    .bg(Color::rgb(80, 80, 80)) // Medium Gray Panel
                                     .child(
                                         div() // Wrapper for positioning the canvas
                                             .offset(Vec2::new(50.0, 50.0))
-                                            .bg(Color::rgb8(60, 60, 100)) // Blue-ish Canvas Background
+                                            .bg(Color::rgb(60, 60, 100)) // Blue-ish Canvas Background
                                             .child(
                                                 canvas(move |cx| {
                                                     // Draw diagonal stripes
                                                     for i in 0..22 {
                                                         let y = i as f64 * 50.0;
                                                         cx.fill(
-                                                            Fill::NonZero,
-                                                            &Brush::Solid(Color::rgb8(70, 70, 110)),
+                                                            FillRule::NonZero,
+                                                            &Brush::Solid(Color::rgb(70, 70, 110)),
                                                             &Rect::new(0.0, y, 400.0, y + 25.0),
                                                         );
                                                     }
 
                                                     // Header
                                                     cx.fill(
-                                                        Fill::NonZero,
-                                                        &Brush::Solid(Color::rgb8(200, 50, 50)),
+                                                        FillRule::NonZero,
+                                                        &Brush::Solid(Color::rgb(200, 50, 50)),
                                                         &Rect::new(0.0, 0.0, 400.0, 50.0),
                                                     );
 
                                                     // Footer
                                                     cx.fill(
-                                                        Fill::NonZero,
-                                                        &Brush::Solid(Color::rgb8(50, 200, 50)),
+                                                        FillRule::NonZero,
+                                                        &Brush::Solid(Color::rgb(50, 200, 50)),
                                                         &Rect::new(0.0, 1050.0, 400.0, 1100.0),
                                                     );
 
@@ -74,9 +72,9 @@ fn main() {
                                                         let y = 50.0 + i as f64 * 40.0;
                                                         let x = 200.0 + (t * 2.0 + i as f64 * 0.2).sin() * 250.0;
                                                         cx.fill(
-                                                            Fill::NonZero,
-                                                            &Brush::Solid(Color::rgb8(200, 200, 255)),
-                                                            &vello::kurbo::Circle::new(Point::new(x, y), 15.0),
+                                                            FillRule::NonZero,
+                                                            &Brush::Solid(Color::rgb(200, 200, 255)),
+                                                            &Circle::new(Point::new(x, y), 15.0),
                                                         );
                                                     }
                                                 })

@@ -1,14 +1,18 @@
 use smallvec::SmallVec;
 use vello::Scene;
-use vello::kurbo::{Affine, Rect, Size};
 
+pub mod draw;
 pub mod element;
 pub mod elements;
 pub mod widget;
 
+pub use draw::{
+    Affine, BlendMode, Brush, Circle, Color, FillRule, Image, Line, Point, Rect, RoundedRect, Size,
+    StrokeStyle, Vec2,
+};
 pub use element::{Element, IntoElement};
 pub use elements::div;
-pub use widget::canvas::canvas;
+pub use widget::canvas::{DrawContext, canvas};
 pub use widget::scroll::scroll_view;
 
 pub type EntityId = u64;

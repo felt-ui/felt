@@ -1,8 +1,9 @@
+use crate::draw::Color;
 use crate::{EntityId, PaintCtx, Widget};
 use smallvec::SmallVec;
 use vello::Scene;
 use vello::kurbo::{Affine, Rect, Size, Stroke, Vec2};
-use vello::peniko::{Brush, Color, Fill};
+use vello::peniko::{Brush, Fill};
 
 pub struct Container {
     pub child: Option<Box<dyn Widget>>,
@@ -39,27 +40,37 @@ impl Widget for Container {
             let rect = Rect::from_origin_size(vello::kurbo::Point::ORIGIN, size);
 
             if let Some(color) = self.background {
-                scene.fill(Fill::NonZero, transform, &Brush::Solid(color), None, &rect);
+                // Convert Felt UI Color to Vello Color
+                let vello_color = vello::peniko::Color::rgba8(color.r, color.g, color.b, color.a);
+                scene.fill(
+                    Fill::NonZero,
+                    transform,
+                    &Brush::Solid(vello_color),
+                    None,
+                    &rect,
+                );
             }
 
             if let Some((color, width)) = self.border {
+                // Convert Felt UI Color to Vello Color
+                let vello_color = vello::peniko::Color::rgba8(color.r, color.g, color.b, color.a);
                 scene.stroke(
                     &Stroke::new(width),
                     transform,
-                    &Brush::Solid(color),
+                    &Brush::Solid(vello_color),
                     None,
                     &rect,
                 );
             }
         } else if let Some(color) = self.background {
-            // If no size but background, maybe fill the whole clip? (Window background case)
-            // This is useful for the root widget.
+            // If no size but background, fill the whole clip (Window background case)
+            let vello_color = vello::peniko::Color::rgba8(color.r, color.g, color.b, color.a);
             scene.fill(
                 Fill::NonZero,
-                Affine::IDENTITY, // Fill whole window
-                &Brush::Solid(color),
+                Affine::IDENTITY,
+                &Brush::Solid(vello_color),
                 None,
-                &ctx.clip, // Use the clip rect (window size)
+                &ctx.clip,
             );
         }
 

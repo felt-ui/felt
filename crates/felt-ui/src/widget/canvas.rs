@@ -1,8 +1,9 @@
+use crate::draw::{Affine, BlendMode, Brush, FillRule, Point, Rect, Size, StrokeStyle};
 use crate::{PaintCtx, Widget};
 use smallvec::SmallVec;
 use vello::Scene;
-use vello::kurbo::{Affine, Point, Rect, Shape, Size, Stroke};
-use vello::peniko::{Brush, Fill, Mix};
+use vello::kurbo::Shape;
+use vello::peniko::Mix;
 
 pub struct DrawContext<'a> {
     ctx: &'a mut PaintCtx,
@@ -15,31 +16,67 @@ impl<'a> DrawContext<'a> {
         Self { ctx, scene, size }
     }
 
-    pub fn fill(&mut self, style: Fill, brush: &Brush, shape: &impl Shape) {
-        self.scene
-            .fill(style, self.ctx.transform, brush, None, shape);
+    pub fn fill(&mut self, fill_rule: FillRule, brush: &Brush, shape: &impl Shape) {
+        let vello_brush = brush.to_vello();
+        self.scene.fill(
+            fill_rule.to_vello(),
+            self.ctx.transform,
+            &vello_brush,
+            None,
+            shape,
+        );
     }
 
-    pub fn stroke(&mut self, style: &Stroke, brush: &Brush, shape: &impl Shape) {
+    pub fn stroke(&mut self, style: &StrokeStyle, brush: &Brush, shape: &impl Shape) {
+        let vello_brush = brush.to_vello();
+        let vello_stroke = style.to_vello();
         self.scene
-            .stroke(style, self.ctx.transform, brush, None, shape);
+            .stroke(&vello_stroke, self.ctx.transform, &vello_brush, None, shape);
     }
 
-    pub fn push_layer(&mut self, blend: Mix, alpha: f32, transform: Affine, shape: &impl Shape) {
+    pub fn push_layer(
+        &mut self,
+        blend: BlendMode,
+        alpha: f32,
+        transform: Affine,
+        shape: &impl Shape,
+    ) {
         // Combine the context transform with the pushed transform
         let combined_transform = self.ctx.transform * transform;
         self.scene
-            .push_layer(blend, alpha, combined_transform, shape);
+            .push_layer(blend.to_vello(), alpha, combined_transform, shape);
     }
 
     pub fn pop_layer(&mut self) {
         self.scene.pop_layer();
+    }
+
+    pub fn draw_image(&mut self, image: &crate::draw::Image, transform: Affine) {
+        let combined_transform = self.ctx.transform * transform;
+        self.scene.draw_image(image.to_vello(), combined_transform);
+    }
+
+    pub fn push_clip_layer(&mut self, shape: &impl Shape) {
+        // For clip layers, we need to transform the shape to global coordinates
+        let global_clip = self.ctx.transform.transform_rect_bbox(shape.bounding_box());
+        self.scene.push_layer(
+            vello::peniko::Mix::Clip,
+            1.0,
+            vello::kurbo::Affine::IDENTITY,
+            &global_clip,
+        );
+    }
+
+    pub fn append(&mut self, canvas: &Canvas, transform: Affine) {
+        let combined_transform = self.ctx.transform * transform;
+        self.scene.append(&canvas.scene, Some(combined_transform));
     }
 }
 
 pub struct Canvas {
     pub size: Size,
     pub painter: Box<dyn FnMut(&mut DrawContext)>,
+    scene: Scene, // Internal scene for recording
 }
 
 impl Canvas {
@@ -47,7 +84,12 @@ impl Canvas {
         Self {
             size,
             painter: Box::new(painter),
+            scene: Scene::new(),
         }
+    }
+
+    pub fn get_scene(&self) -> &Scene {
+        &self.scene
     }
 }
 

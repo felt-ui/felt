@@ -1,11 +1,11 @@
 use crate::Widget;
+use crate::draw::Color;
 use crate::element::{Element, IntoElement};
 use crate::widget::container::Container;
 use vello::kurbo::{Size, Vec2};
-use vello::peniko::Color;
 
 pub struct Div {
-    child: Option<Box<dyn Widget>>,
+    child: Option<Box<dyn crate::Widget>>,
     size: Option<Size>,
     bg: Option<Color>,
     border: Option<(Color, f64)>,
