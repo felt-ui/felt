@@ -35,26 +35,102 @@ Felt UI adopts a hybrid reactivity model inspired by **SolidJS** for fine-graine
 UI components react to state changes using Signals and Effects. This allows for precise updates without re-rendering the entire component tree.
 
 #### Signals
-Signals are the basic units of state. They hold a value and notify subscribers when that value changes.
+Signals are the basic units of state. They hold a value and notify subscribers when that value changes. The type must implement `Hash` for efficient change detection via hash comparison.
 
 ```rust
-// Creating a signal
-let (count, set_count) = create_signal(0);
+// Creating a signal (T must implement Hash + Clone)
+let (count, set_count) = create_signal::<i32>(0);
 
 // Reading a signal (subscribes the current context)
 let current_count = count.get();
 
-// Updating a signal
+// Updating a signal (only notifies if hash changes)
 set_count.set(current_count + 1);
+
+// For complex types
+#[derive(Clone, Hash, PartialEq)]
+struct User {
+    id: u64,
+    name: String,
+}
+
+let (user, set_user) = create_signal(User { id: 1, name: "Alice".into() });
 ```
 
+**Signal Implementation Algorithm:**
+
+The Signal internally maintains both the value and its hash for efficient change detection:
+
+```rust
+pub struct Signal<T: Hash + Clone> {
+    value: Arc<RwLock<T>>,
+    hash: Arc<RwLock<u64>>,
+    subscribers: Arc<RwLock<Vec<SubscriberId>>>,
+}
+
+impl<T: Hash + Clone> Signal<T> {
+    pub fn new(initial: T) -> Self {
+        let mut hasher = DefaultHasher::new();
+        initial.hash(&mut hasher);
+        let initial_hash = hasher.finish();
+        
+        Self {
+            value: Arc::new(RwLock::new(initial)),
+            hash: Arc::new(RwLock::new(initial_hash)),
+            subscribers: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+    
+    pub fn get(&self) -> T {
+        // Track this signal as a dependency of the current reactive context
+        track_dependency(self.id());
+        self.value.read().unwrap().clone()
+    }
+    
+    pub fn set(&self, new_value: T) {
+        // 1. Compute hash of new value
+        let mut hasher = DefaultHasher::new();
+        new_value.hash(&mut hasher);
+        let new_hash = hasher.finish();
+        
+        // 2. Compare with stored hash (fast O(1) comparison)
+        let old_hash = *self.hash.read().unwrap();
+        
+        if new_hash != old_hash {
+            // 3. Only update if hash changed
+            *self.value.write().unwrap() = new_value;
+            *self.hash.write().unwrap() = new_hash;
+            
+            // 4. Notify subscribers
+            let subscribers = self.subscribers.read().unwrap();
+            for subscriber_id in subscribers.iter() {
+                schedule_effect(*subscriber_id);
+            }
+        }
+        // If hash is the same, do nothing (no notifications, no updates)
+    }
+}
+```
+
+**Performance Benefits:**
+- **O(1) hash comparison** vs O(n) deep equality for complex types
+- Prevents cascade re-renders when setting the same value
+- Works seamlessly with derived types (enums, structs with many fields)
+
 #### Effects
-Effects are side effects that run when their dependencies change.
+Effects are side effects that run when their dependencies change. They automatically track which signals are accessed.
 
 ```rust
 create_effect(move || {
     // This closure re-runs whenever `count` changes
     println!("The count is now: {}", count.get());
+});
+
+// Effects can depend on multiple signals
+create_effect(move || {
+    let u = user.get();
+    let c = count.get();
+    println!("User {} has count {}", u.name, c);
 });
 ```
 
@@ -78,14 +154,26 @@ div()
 For application-wide state, Felt provides a centralized store with a reducer-like pattern, but simplified.
 
 #### Store Definition
-Define your state struct and the initial state.
+Define your state struct and the initial state. All state types must implement `Hash` for efficient change detection.
 
 ```rust
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq)]
 struct AppState {
     user: Option<User>,
     theme: Theme,
     notifications: Vec<String>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq)]
+struct User {
+    id: u64,
+    name: String,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq)]
+enum Theme {
+    Light,
+    Dark,
 }
 
 impl Default for AppState {
@@ -118,14 +206,28 @@ impl AppState {
 ```
 
 #### Usage in Components
-Components subscribe to specific slices of the store using selectors. This ensures they only re-render when that specific slice changes.
+Components subscribe to specific slices of the store using selectors. The selected value must implement `Hash` for efficient change detection. This ensures they only re-render when that specific slice changes.
 
 ```rust
-// Subscribe to the user slice
+// Subscribe to the user slice (Option<User> must implement Hash)
 let user = use_store(|state: &AppState| state.user.clone());
 
-// Subscribe to the theme slice
+// Subscribe to the theme slice (Theme must implement Hash)
 let theme = use_store(|state: &AppState| state.theme);
+
+// For derived/computed values, ensure the result type implements Hash
+#[derive(Clone, Hash, PartialEq)]
+enum UserStatus {
+    LoggedIn(String),
+    LoggedOut,
+}
+
+let user_status = use_store(|state: &AppState| {
+    match &state.user {
+        Some(u) => UserStatus::LoggedIn(u.name.clone()),
+        None => UserStatus::LoggedOut,
+    }
+});
 
 div()
     .bg(move || match theme.get() {
@@ -147,15 +249,33 @@ The reactivity system drives the UI update loop, ensuring that only the necessar
 #### 1. Dependency Tracking
 When a Signal is accessed (e.g., via `.get()`) within an **Effect** or a **UI binding closure**, the running effect is automatically registered as a *subscriber* to that Signal. This creates a dynamic dependency graph.
 
-#### 2. Change Notification
-When a Signal's value is updated (e.g., via `.set()`), it notifies all its subscribers.
+#### 2. Hash-Based Change Detection
+All reactive values must implement `Hash` for efficient change detection:
+- When a Signal's value is updated via `.set()`, the framework computes the hash of the new value.
+- This hash is compared with the hash of the previous value.
+- **Only if the hashes differ** are subscribers notified, preventing unnecessary re-renders.
+- This is significantly faster than deep equality checks for complex types.
 
-#### 3. Effect Scheduling
+```rust
+// Example: Only notifies if the hash changes
+let (user, set_user) = create_signal(User { id: 1, name: "Alice".into() });
+
+// This will notify subscribers (hash changes)
+set_user.set(User { id: 1, name: "Bob".into() });
+
+// This will NOT notify subscribers (same hash as previous)
+set_user.set(User { id: 1, name: "Bob".into() });
+```
+
+#### 3. Change Notification
+When a hash mismatch is detected, the Signal notifies all its subscribers.
+
+#### 4. Effect Scheduling
 Notified Effects are scheduled to run.
 -   **Synchronous**: Simple effects may run immediately.
 -   **Batching**: To avoid unnecessary work, multiple signal updates within a single event loop tick can be batched, running effects only once.
 
-#### 4. UI Updates & Rendering
+#### 5. UI Updates & Rendering
 The reactivity system integrates tightly with the rendering pipeline:
 -   **Property Updates**: If a Signal is bound to a property (e.g., `bg`, `width`), the element's internal state is updated directly.
 -   **Dirty Marking**: If the property affects layout or visual appearance, the element marks itself as "dirty" (e.g., `needs_layout` or `needs_paint`).
