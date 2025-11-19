@@ -2,6 +2,7 @@
 members = [
     "crates/felt-ui",
     "crates/felt-platform",
+    "demo",
 ]
 resolver = "2"
 
